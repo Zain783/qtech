@@ -123,6 +123,9 @@ export default function InstallmentSaleDetail() {
                                 <div><strong>Profit:</strong> {sale.profit}</div>
                                 <div><strong>Total Amount:</strong> {sale.total}</div>
                                 <div><strong>Down Payment:</strong> {sale.down_payment}</div>
+                                {sale.interest_rate !== undefined && (
+                                    <div><strong>Interest Rate:</strong> {sale.interest_rate}%</div>
+                                )}
                                 <div><strong>Monthly Installment:</strong> {sale.monthly_installment}</div>
                                 <div><strong>Duration:</strong> {sale.duration} months</div>
                                 <div><strong>Status:</strong> <span className="badge badge-primary">{sale.status}</span></div>

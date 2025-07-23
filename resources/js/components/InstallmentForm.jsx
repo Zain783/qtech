@@ -17,19 +17,24 @@ export default function InstallmentForm({ product, onSubmit, onCancel }) {
     });
     const [details, setDetails] = useState({
         price: product?.price || 0,
-        profit: 0,
         total: product?.price || 0,
         down_payment: 0,
         monthly_installment: 0,
         duration: 12,
+        interest_rate: 0, // new field
     });
-    // Update total when price or profit changes
+    // Update total when price, down_payment, interest_rate, or duration changes
     React.useEffect(() => {
+        // Calculate interest on remaining amount after down payment
+        const principal = parseFloat(details.price) - parseFloat(details.down_payment || 0);
+        const interest = principal * (parseFloat(details.interest_rate || 0) / 100);
+        const total = parseFloat(details.price) + interest;
         setDetails((prev) => ({
             ...prev,
-            total: parseFloat(prev.price) + parseFloat(prev.profit || 0),
+            total: total,
+            monthly_installment: prev.duration > 0 ? (total - parseFloat(prev.down_payment || 0)) / parseFloat(prev.duration) : 0,
         }));
-    }, [details.price, details.profit]);
+    }, [details.price, details.down_payment, details.interest_rate, details.duration]);
 
     const handleCustomerChange = (e) => {
         const { name, value, files } = e.target;
@@ -94,7 +99,7 @@ export default function InstallmentForm({ product, onSubmit, onCancel }) {
                     <input type="number" className="form-control" name="price" placeholder="Product Price" value={details.price} onChange={handleDetailsChange} required />
                 </div>
                 <div className="col-md-4 mb-2">
-                    <input type="number" className="form-control" name="profit" placeholder="Profit" value={details.profit} onChange={handleDetailsChange} required />
+                    <input type="number" className="form-control" name="interest_rate" placeholder="Interest Rate (%)" value={details.interest_rate} onChange={handleDetailsChange} min="0" step="0.01" required />
                 </div>
                 <div className="col-md-4 mb-2">
                     <input type="number" className="form-control" name="total" placeholder="Total Amount" value={details.total} readOnly />
@@ -103,7 +108,7 @@ export default function InstallmentForm({ product, onSubmit, onCancel }) {
                     <input type="number" className="form-control" name="down_payment" placeholder="Down Payment" value={details.down_payment} onChange={handleDetailsChange} required />
                 </div>
                 <div className="col-md-4 mb-2">
-                    <input type="number" className="form-control" name="monthly_installment" placeholder="Monthly Installment" value={details.monthly_installment} onChange={handleDetailsChange} required />
+                    <input type="number" className="form-control" name="monthly_installment" placeholder="Monthly Installment" value={details.monthly_installment} readOnly />
                 </div>
                 <div className="col-md-4 mb-2">
                     <input type="number" className="form-control" name="duration" placeholder="Duration (months)" value={details.duration} onChange={handleDetailsChange} required />

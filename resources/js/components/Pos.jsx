@@ -247,6 +247,7 @@ export default function Pos() {
         Object.entries(formData.details).forEach(([key, value]) => {
             data.append(`details_${key}`, value);
         });
+        // No change needed, as interest_rate is now included in details
         try {
             await axios.post("/admin/installment-sale", data, {
                 headers: { "Content-Type": "multipart/form-data" },

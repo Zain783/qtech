@@ -6,17 +6,21 @@ import toast, { Toaster } from 'react-hot-toast';
 export default function InstallmentPaymentForm() {
     const { id } = useParams();
     const navigate = useNavigate();
-    const [sale, setSale] = useState(null);
-    const [loading, setLoading] = useState(true);
+    const [sale, setSale] = useState(window.installmentSale || null);
+    const [loading, setLoading] = useState(!window.installmentSale);
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState(null);
     const [payment, setPayment] = useState({
         amount: '',
         notes: ''
     });
+    const [editingPaymentId, setEditingPaymentId] = useState(null);
+    const [editPayment, setEditPayment] = useState({ amount: '', notes: '' });
 
     useEffect(() => {
-        fetchSaleDetails();
+        if (!window.installmentSale) {
+            fetchSaleDetails();
+        }
     }, [id]);
 
     const fetchSaleDetails = async () => {
@@ -72,6 +76,45 @@ export default function InstallmentPaymentForm() {
         }
     };
 
+    // Edit payment handlers
+    const startEditPayment = (payment) => {
+        setEditingPaymentId(payment.id);
+        setEditPayment({ amount: payment.amount, notes: payment.note || '' });
+    };
+    const cancelEditPayment = () => {
+        setEditingPaymentId(null);
+        setEditPayment({ amount: '', notes: '' });
+    };
+    const handleEditChange = (e) => {
+        const { name, value } = e.target;
+        setEditPayment(prev => ({ ...prev, [name]: value }));
+    };
+    const submitEditPayment = async (e) => {
+        e.preventDefault();
+        if (!editPayment.amount || parseFloat(editPayment.amount) <= 0) {
+            toast.error('Please enter a valid payment amount');
+            return;
+        }
+        try {
+            await axios.put(`/admin/installment-payments/${editingPaymentId}`, editPayment);
+            toast.success('Payment updated successfully!');
+            setEditingPaymentId(null);
+            fetchSaleDetails();
+        } catch (err) {
+            toast.error(err.response?.data?.message || 'Error updating payment');
+        }
+    };
+    const deletePayment = async (paymentId) => {
+        if (!window.confirm('Are you sure you want to delete this payment?')) return;
+        try {
+            await axios.delete(`/admin/installment-payments/${paymentId}`);
+            toast.success('Payment deleted successfully!');
+            fetchSaleDetails();
+        } catch (err) {
+            toast.error(err.response?.data?.message || 'Error deleting payment');
+        }
+    };
+
     if (loading) return <div className="text-center p-5"><i className="fas fa-spinner fa-spin fa-2x"></i></div>;
     if (error) return <div className="alert alert-danger">{error}</div>;
     if (!sale) return <div className="alert alert-warning">Sale not found</div>;
@@ -105,13 +148,68 @@ export default function InstallmentPaymentForm() {
                                 <h5 className="mb-0">Payment Summary</h5>
                             </div>
                             <div className="card-body">
-                                <div><strong>Monthly Installment:</strong> {sale.monthly_installment}</div>
                                 <div><strong>Down Payment:</strong> {sale.down_payment}</div>
+                                {sale.interest_rate !== undefined && (
+                                    <div><strong>Interest Rate:</strong> {sale.interest_rate}%</div>
+                                )}
+                                <div><strong>Monthly Installment:</strong> {sale.monthly_installment}</div>
                                 <div><strong>Total Paid:</strong> {sale.payments?.reduce((sum, payment) => sum + parseFloat(payment.amount), 0) || 0}</div>
                                 <div><strong>Remaining Balance:</strong> {remainingBalance}</div>
                             </div>
                         </div>
                     </div>
+                </div>
+
+                <div className="mb-4">
+                    <h5>Previous Payments</h5>
+                    <table className="table table-bordered">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Amount</th>
+                                <th>Notes</th>
+                                <th>Date</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {sale.payments && sale.payments.length > 0 ? sale.payments.map((p, idx) => (
+                                <tr key={p.id}>
+                                    <td>{idx + 1}</td>
+                                    <td>
+                                        {editingPaymentId === p.id ? (
+                                            <input type="number" name="amount" value={editPayment.amount} onChange={handleEditChange} className="form-control" min="0.01" step="0.01" required />
+                                        ) : (
+                                            p.amount
+                                        )}
+                                    </td>
+                                    <td>
+                                        {editingPaymentId === p.id ? (
+                                            <input type="text" name="notes" value={editPayment.notes} onChange={handleEditChange} className="form-control" />
+                                        ) : (
+                                            p.note
+                                        )}
+                                    </td>
+                                    <td>{p.paid_at ? new Date(p.paid_at).toLocaleString() : ''}</td>
+                                    <td>
+                                        {editingPaymentId === p.id ? (
+                                            <>
+                                                <button className="btn btn-success btn-sm me-2" onClick={submitEditPayment}><i className="fas fa-save"></i></button>
+                                                <button className="btn btn-secondary btn-sm" onClick={cancelEditPayment}><i className="fas fa-times"></i></button>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <button className="btn btn-primary btn-sm me-2" onClick={() => startEditPayment(p)}><i className="fas fa-edit"></i></button>
+                                                <button className="btn btn-danger btn-sm" onClick={() => deletePayment(p.id)}><i className="fas fa-trash"></i></button>
+                                            </>
+                                        )}
+                                    </td>
+                                </tr>
+                            )) : (
+                                <tr><td colSpan="5" className="text-center">No payments yet.</td></tr>
+                            )}
+                        </tbody>
+                    </table>
                 </div>
 
                 <form onSubmit={handleSubmit}>

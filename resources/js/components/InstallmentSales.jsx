@@ -18,7 +18,7 @@ export default function InstallmentSales() {
         try {
             setLoading(true);
             const response = await axios.get('/admin/installment-sales');
-            setSales(response.data);
+            setSales(response.data.filter(sale => sale.id));
             setLoading(false);
         } catch (err) {
             setError('Failed to load installment sales');
@@ -49,57 +49,69 @@ export default function InstallmentSales() {
                         </thead>
                         <tbody>
                             {sales.length > 0 ? (
-                                sales.map(sale => (
-                                    <tr key={sale.id}>
-                                        <td>
-                                            <div className="d-flex flex-column align-items-center">
-                                                <img 
-                                                    src={sale.product && sale.product.image ? `${fullDomainWithPort}/storage/${sale.product.image}` : `${fullDomainWithPort}/assets/images/no-image.png`} 
-                                                    alt={sale.product?.name || 'N/A'}
-                                                    className="img-thumbnail mb-2" 
-                                                    style={{ width: '80px', height: '80px' }}
-                                                    onError={e => { e.target.onerror = null; e.target.src = `${fullDomainWithPort}/assets/images/no-image.png`; }}
-                                                />
-                                                <div className="text-center">
-                                                    <strong>{sale.product?.name || 'N/A'}</strong>
-                                                    <div>ID: {sale.product?.id || 'N/A'}</div>
+                                sales.filter(sale => sale.id).map(sale => {
+                                    console.log('Rendering sale:', sale);
+                                    return (
+                                        <tr key={sale.id}>
+                                            <td>
+                                                <div className="d-flex flex-column align-items-center">
+                                                    <img 
+                                                        src={sale.product && sale.product.image ? `${fullDomainWithPort}/storage/${sale.product.image}` : `${fullDomainWithPort}/assets/images/no-image.png`} 
+                                                        alt={sale.product?.name || 'N/A'}
+                                                        className="img-thumbnail mb-2" 
+                                                        style={{ width: '80px', height: '80px' }}
+                                                        onError={e => { e.target.onerror = null; e.target.src = `${fullDomainWithPort}/assets/images/no-image.png`; }}
+                                                    />
+                                                    <div className="text-center">
+                                                        <strong>{sale.product?.name || 'N/A'}</strong>
+                                                        <div>ID: {sale.product?.id || 'N/A'}</div>
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        </td>
-                                        <td>
-                                            <div><strong>Name:</strong> {sale.customer?.name || 'N/A'}</div>
-                                            <div><strong>Address:</strong> {sale.customer?.address || 'N/A'}</div>
-                                            <div><strong>Phone:</strong> {sale.customer?.phone || 'N/A'}</div>
-                                            <div><strong>CNIC:</strong> {sale.customer?.cnic || 'N/A'}</div>
-                                        </td>
-                                        <td>
-                                            <div><strong>Total Amount:</strong> {sale.total}</div>
-                                            <div><strong>Down Payment:</strong> {sale.down_payment}</div>
-                                            <div><strong>Monthly Installment:</strong> {sale.monthly_installment}</div>
-                                            <div><strong>Duration:</strong> {sale.duration} months</div>
-                                            <div><strong>Paid Amount:</strong> {sale.payments && sale.payments.length > 0 ? sale.payments.reduce((sum, payment) => sum + parseFloat(payment.amount), 0) : 0}</div>
-                                            <div><strong>Remaining:</strong> {sale.remaining_balance}</div>
-                                        </td>
-                                        <td>
-                                            <div><strong>Name:</strong> {sale.guarantor?.name || 'N/A'}</div>
-                                            <div><strong>Address:</strong> {sale.guarantor?.address || 'N/A'}</div>
-                                            <div><strong>Phone:</strong> {sale.guarantor?.phone || 'N/A'}</div>
-                                            <div><strong>CNIC:</strong> {sale.guarantor?.cnic || 'N/A'}</div>
-                                            <div><strong>Relationship:</strong> {sale.guarantor?.relationship || 'N/A'}</div>
-                                        </td>
-                                        <td>
-                                            <Link to={`/admin/installment-sales/${sale.id}`} className="btn btn-info btn-sm mb-1 w-100">
-                                                <i className="fas fa-eye"></i> View Details
-                                            </Link>
-                                            <Link to={`/admin/installment-sales/${sale.id}/payments`} className="btn btn-success btn-sm mb-1 w-100">
-                                                <i className="fas fa-money-bill"></i> Payments
-                                            </Link>
-                                            <button className="btn btn-primary btn-sm w-100" onClick={() => window.open(`/admin/installment-sales/${sale.id}/print`, '_blank')}>
-                                                <i className="fas fa-print"></i> Print
-                                            </button>
-                                        </td>
-                                    </tr>
-                                ))
+                                            </td>
+                                            <td>
+                                                <div><strong>Name:</strong> {sale.customer?.name || 'N/A'}</div>
+                                                <div><strong>Address:</strong> {sale.customer?.address || 'N/A'}</div>
+                                                <div><strong>Phone:</strong> {sale.customer?.phone || 'N/A'}</div>
+                                                <div><strong>CNIC:</strong> {sale.customer?.cnic || 'N/A'}</div>
+                                            </td>
+                                            <td>
+                                                <div><strong>Total Amount:</strong> {sale.total}</div>
+                                                <div><strong>Down Payment:</strong> {sale.down_payment}</div>
+                                                <div><strong>Monthly Installment:</strong> {sale.monthly_installment}</div>
+                                                <div><strong>Duration:</strong> {sale.duration} months</div>
+                                                <div><strong>Paid Amount:</strong> {sale.payments && sale.payments.length > 0 ? sale.payments.reduce((sum, payment) => sum + parseFloat(payment.amount), 0) : 0}</div>
+                                                <div><strong>Remaining:</strong> {sale.remaining_balance}</div>
+                                                {sale.interest_rate !== undefined && (
+                                                    <div><strong>Interest Rate:</strong> {sale.interest_rate}%</div>
+                                                )}
+                                            </td>
+                                            <td>
+                                                <div><strong>Name:</strong> {sale.guarantor?.name || 'N/A'}</div>
+                                                <div><strong>Address:</strong> {sale.guarantor?.address || 'N/A'}</div>
+                                                <div><strong>Phone:</strong> {sale.guarantor?.phone || 'N/A'}</div>
+                                                <div><strong>CNIC:</strong> {sale.guarantor?.cnic || 'N/A'}</div>
+                                                <div><strong>Relationship:</strong> {sale.guarantor?.relationship || 'N/A'}</div>
+                                            </td>
+                                            <td>
+                                                {sale.id ? (
+                                                    <>
+                                                        <a href={`/admin/installment-sales/${sale.id}`} target="_blank" rel="noopener noreferrer" className="btn btn-info btn-sm mb-1 w-100">
+                                                            <i className="fas fa-eye"></i> View Details
+                                                        </a>
+                                                        <a href={`/admin/installment-sales/${sale.id}/payments`} target="_blank" rel="noopener noreferrer" className="btn btn-success btn-sm mb-1 w-100">
+                                                            <i className="fas fa-money-bill"></i> Update Payment
+                                                        </a>
+                                                        <button className="btn btn-primary btn-sm w-100" onClick={() => window.open(`/admin/installment-sales/${sale.id}/print`, '_blank')}>
+                                                            <i className="fas fa-print"></i> Print
+                                                        </button>
+                                                    </>
+                                                ) : (
+                                                    <span className="text-danger">Invalid Sale</span>
+                                                )}
+                                            </td>
+                                        </tr>
+                                    );
+                                })
                             ) : (
                                 <tr>
                                     <td colSpan="5" className="text-center">No installment sales found</td>

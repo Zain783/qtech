@@ -35,7 +35,10 @@ class InstallmentSaleController extends Controller
     {
         if ($request->wantsJson()) {
             $sale = InstallmentSale::with(['product', 'customer', 'guarantor', 'payments', 'salesman'])
-                ->findOrFail($id);
+                ->find($id);
+            if (!$sale) {
+                return response()->json(['message' => 'Installment sale not found.'], 404);
+            }
             return response()->json($sale);
         }
         
@@ -47,7 +50,8 @@ class InstallmentSaleController extends Controller
      */
     public function payment(string $id)
     {
-        return view('backend.installment.payment');
+        $sale = InstallmentSale::with(['product', 'customer', 'guarantor', 'payments', 'salesman'])->find($id);
+        return view('backend.installment.payment', compact('sale'));
     }
 
     /**
@@ -269,5 +273,51 @@ class InstallmentSaleController extends Controller
         }
 
         return response()->json(['message' => 'Payment recorded successfully'], 200);
+    }
+
+    /**
+     * Update an existing installment payment.
+     */
+    public function updatePayment(Request $request, $paymentId)
+    {
+        $request->validate([
+            'amount' => 'required|numeric|min:1',
+            'notes' => 'nullable|string|max:255',
+        ]);
+
+        $payment = InstallmentPayment::findOrFail($paymentId);
+        $sale = $payment->installmentSale;
+        $oldAmount = $payment->amount;
+        $newAmount = $request->amount;
+        $totalPaidExcludingThis = $sale->down_payment + $sale->payments()->where('id', '!=', $paymentId)->sum('amount');
+        $remainingBalance = $sale->total - $totalPaidExcludingThis;
+        if ($newAmount > $remainingBalance) {
+            return response()->json(['message' => 'Payment amount cannot exceed the remaining balance'], 422);
+        }
+        $payment->amount = $newAmount;
+        $payment->note = $request->notes;
+        $payment->save();
+        // Update sale status if fully paid
+        if ($sale->remaining_balance <= 0) {
+            $sale->status = 'completed';
+            $sale->save();
+        }
+        return response()->json(['message' => 'Payment updated successfully'], 200);
+    }
+
+    /**
+     * Delete an installment payment.
+     */
+    public function deletePayment($paymentId)
+    {
+        $payment = InstallmentPayment::findOrFail($paymentId);
+        $sale = $payment->installmentSale;
+        $payment->delete();
+        // Optionally update sale status if needed
+        if ($sale->remaining_balance > 0 && $sale->status === 'completed') {
+            $sale->status = 'active';
+            $sale->save();
+        }
+        return response()->json(['message' => 'Payment deleted successfully'], 200);
     }
 }

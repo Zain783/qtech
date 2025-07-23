@@ -150,7 +150,7 @@ Route::prefix('admin')->as('backend.admin.')->middleware(['admin'])->group(funct
 
     Route::get('installment-sales', [InstallmentSaleController::class, 'index'])->name('installment.sales');
     Route::get('installment-sales/{id}', [InstallmentSaleController::class, 'show'])->name('installment.sales.show');
-    Route::get('installment-sales/{id}/payment', [InstallmentSaleController::class, 'payment'])->name('installment.sales.payment');
+    Route::get('installment-sales/{id}/payments', [InstallmentSaleController::class, 'payment'])->name('installment.sales.payment');
     Route::post('installment-sales/{id}/payments', [InstallmentSaleController::class, 'storePayment'])->name('installment.sales.store.payment');
     Route::post('installment-sale', [\App\Http\Controllers\Backend\InstallmentSaleController::class, 'store']);
     Route::get('salesman/installment-sales', [InstallmentSaleController::class, 'salesmanIndex'])->name('salesman.installment.sales');
@@ -161,6 +161,8 @@ Route::prefix('admin')->as('backend.admin.')->middleware(['admin'])->group(funct
     Route::get('salesmen', [InstallmentSaleController::class, 'getSalesmen']);
     Route::get('unassigned-installment-customers', [InstallmentSaleController::class, 'getUnassignedCustomers']);
     Route::post('assign-salesmen', [InstallmentSaleController::class, 'assignSalesmen']);
+    Route::put('installment-payments/{paymentId}', [InstallmentSaleController::class, 'updatePayment'])->name('installment.payments.update');
+    Route::delete('installment-payments/{paymentId}', [InstallmentSaleController::class, 'deletePayment'])->name('installment.payments.delete');
 });
 
 // ====================== /BACKEND ======================
