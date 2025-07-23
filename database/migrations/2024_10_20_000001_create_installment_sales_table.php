@@ -14,7 +14,7 @@ return new class extends Migration
             $table->unsignedBigInteger('customer_id');
             $table->unsignedBigInteger('salesman_id')->nullable();
             $table->decimal('price', 12, 2);
-            $table->decimal('profit', 12, 2);
+            $table->decimal('interest_rate', 5, 2)->default(0);
             $table->decimal('total', 12, 2);
             $table->decimal('down_payment', 12, 2);
             $table->decimal('monthly_installment', 12, 2);

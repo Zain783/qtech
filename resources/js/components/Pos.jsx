@@ -142,7 +142,11 @@ export default function Pos() {
         if (purchaseType === "installment") {
             // Find the product from products list
             const product = products.find((p) => p.id === id);
-            setSelectedInstallmentProduct(product);
+            // Use discounted_price if available and less than price
+            const priceToUse = (product.discounted_price && product.discounted_price < product.price)
+                ? product.discounted_price
+                : product.price;
+            setSelectedInstallmentProduct({ ...product, price: priceToUse });
             setShowInstallmentForm(true);
             return;
         }

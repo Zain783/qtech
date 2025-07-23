@@ -14,7 +14,7 @@ class InstallmentSale extends Model
         'customer_id',
         'salesman_id',
         'price',
-        'profit',
+        'interest_rate',
         'total',
         'down_payment',
         'monthly_installment',

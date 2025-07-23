@@ -36,6 +36,14 @@ export default function InstallmentForm({ product, onSubmit, onCancel }) {
         }));
     }, [details.price, details.down_payment, details.interest_rate, details.duration]);
 
+    // Update price if product changes
+    React.useEffect(() => {
+        setDetails((prev) => ({
+            ...prev,
+            price: product?.price || 0,
+        }));
+    }, [product]);
+
     const handleCustomerChange = (e) => {
         const { name, value, files } = e.target;
         setCustomer((prev) => ({
