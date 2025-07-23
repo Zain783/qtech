@@ -272,7 +272,11 @@ class InstallmentSaleController extends Controller
             $sale->save();
         }
 
-        return response()->json(['message' => 'Payment recorded successfully'], 200);
+        if ($request->wantsJson()) {
+            return response()->json(['message' => 'Payment recorded successfully'], 200);
+        } else {
+            return redirect()->back()->with('success', 'Payment recorded successfully');
+        }
     }
 
     /**

@@ -95,11 +95,8 @@ export default function InstallmentSales() {
                                             <td>
                                                 {sale.id ? (
                                                     <>
-                                                        <a href={`/admin/installment-sales/${sale.id}`} target="_blank" rel="noopener noreferrer" className="btn btn-info btn-sm mb-1 w-100">
-                                                            <i className="fas fa-eye"></i> View Details
-                                                        </a>
-                                                        <a href={`/admin/installment-sales/${sale.id}/payments`} target="_blank" rel="noopener noreferrer" className="btn btn-success btn-sm mb-1 w-100">
-                                                            <i className="fas fa-money-bill"></i> Update Payment
+                                                        <a href={`/admin/installment-sales/${sale.id}/payments`} className="btn btn-success btn-sm mb-1 w-100">
+                                                            <i className="fas fa-money-bill"></i> View - Update Payment 
                                                         </a>
                                                         <button className="btn btn-primary btn-sm w-100" onClick={() => window.open(`/admin/installment-sales/${sale.id}/print`, '_blank')}>
                                                             <i className="fas fa-print"></i> Print
