@@ -98,9 +98,9 @@ export default function InstallmentSales() {
                                                         <a href={`/admin/installment-sales/${sale.id}/payments`} className="btn btn-success btn-sm mb-1 w-100">
                                                             <i className="fas fa-money-bill"></i> View - Update Payment 
                                                         </a>
-                                                        <button className="btn btn-primary btn-sm w-100" onClick={() => window.open(`/admin/installment-sales/${sale.id}/print`, '_blank')}>
+                                                        <a href={`/admin/installment-sales/${sale.id}/print`} className="btn btn-primary btn-sm w-100">
                                                             <i className="fas fa-print"></i> Print
-                                                        </button>
+                                                        </a>
                                                     </>
                                                 ) : (
                                                     <span className="text-danger">Invalid Sale</span>
