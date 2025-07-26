@@ -234,7 +234,7 @@ $route = request()->route()->getName();
                 </a>
                 <ul class="nav nav-treeview">
                     <li class="nav-item">
-                        <a href="{{route('backend.admin.installment.sales')}}" 
+                        <a href="{{route('backend.admin.installment.sales')}}"
                             class="nav-link {{ request()->routeIs(['backend.admin.installment.sales']) ? 'active' : '' }}">
                             <i class="fas fa-circle nav-icon"></i>
                             <p>Installment List</p>
@@ -248,20 +248,20 @@ $route = request()->route()->getName();
                 <a href="#" class="nav-link {{ request()->routeIs(['backend.admin.salesman.installment.sales', 'backend.admin.salesman.print.list', 'backend.admin.salesman.assignment']) ? 'menu-open' : '' }}">
                     <i class="fas fa-user-tie nav-icon"></i>
                     <p>
-                        Salesman
+                        Recovery Officer
                         <i class="fas fa-angle-left right"></i>
                     </p>
                 </a>
                 <ul class="nav nav-treeview">
                     <li class="nav-item">
-                        <a href="{{route('backend.admin.salesman.installment.sales')}}" 
+                        <a href="{{route('backend.admin.salesman.installment.sales')}}"
                             class="nav-link {{ request()->routeIs(['backend.admin.salesman.installment.sales']) ? 'active' : '' }}">
                             <i class="fas fa-circle nav-icon"></i>
                             <p>Customer Portal</p>
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a href="{{route('backend.admin.salesman.assignment')}}" 
+                        <a href="{{route('backend.admin.salesman.assignment')}}"
                             class="nav-link {{ request()->routeIs(['backend.admin.salesman.assignment']) ? 'active' : '' }}">
                             <i class="fas fa-circle nav-icon"></i>
                             <p>Customer Assignment</p>
