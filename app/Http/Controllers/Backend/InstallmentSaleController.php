@@ -24,7 +24,7 @@ class InstallmentSaleController extends Controller
             $sales = InstallmentSale::with(['product', 'customer', 'guarantor', 'payments', 'salesman'])->get();
             return response()->json($sales);
         }
-        
+
         return view('backend.installment.index');
     }
 
@@ -41,7 +41,7 @@ class InstallmentSaleController extends Controller
             }
             return response()->json($sale);
         }
-        
+
         return view('backend.installment.detail');
     }
 
@@ -65,7 +65,7 @@ class InstallmentSaleController extends Controller
                 ->get();
             return response()->json($sales);
         }
-        
+
         return view('backend.salesman.portal');
     }
 
@@ -88,10 +88,10 @@ class InstallmentSaleController extends Controller
                 ->get();
             return response()->json($sales);
         }
-        
+
         return view('backend.salesman.print');
     }
-    
+
     /**
      * Get all salesmen (users with sales_associate role)
      */
@@ -101,11 +101,11 @@ class InstallmentSaleController extends Controller
         if (!$salesRole) {
             return response()->json([]);
         }
-        
+
         $salesmen = User::role('sales_associate')->get(['id', 'name', 'email']);
         return response()->json($salesmen);
     }
-    
+
     /**
      * Get all unassigned installment customers
      */
@@ -116,7 +116,7 @@ class InstallmentSaleController extends Controller
             ->get();
         return response()->json($unassignedSales);
     }
-    
+
     /**
      * Assign salesmen to unassigned customers
      */
@@ -126,27 +126,27 @@ class InstallmentSaleController extends Controller
             'salesman_ids' => 'required|array',
             'salesman_ids.*' => 'exists:users,id',
         ]);
-        
+
         $salesmanIds = $request->input('salesman_ids');
         $unassignedSales = InstallmentSale::whereNull('salesman_id')->get();
-        
+
         if ($unassignedSales->isEmpty()) {
             return response()->json([
                 'message' => 'No unassigned customers found',
                 'assignments' => []
             ]);
         }
-        
+
         // Distribute sales evenly among salesmen
         $salesCount = count($unassignedSales);
         $salesmenCount = count($salesmanIds);
         $salesPerSalesman = ceil($salesCount / $salesmenCount);
-        
+
         $assignments = [];
         foreach ($salesmanIds as $index => $salesmanId) {
             $start = $index * $salesPerSalesman;
             $end = min(($index + 1) * $salesPerSalesman, $salesCount);
-            
+
             $assignedCount = 0;
             for ($i = $start; $i < $end; $i++) {
                 if (isset($unassignedSales[$i])) {
@@ -155,22 +155,19 @@ class InstallmentSaleController extends Controller
                     $assignedCount++;
                 }
             }
-            
+
             $assignments[] = [
                 'salesman' => User::find($salesmanId),
                 'customer_count' => $assignedCount
             ];
         }
-        
+
         return response()->json([
             'message' => 'Customers assigned successfully',
             'assignments' => $assignments
         ]);
     }
 
-    /**
-     * Store a new installment sale (POS Installment Purchase)
-     */
     public function store(Request $request)
     {
         // Validate input (add more rules as needed)
@@ -198,15 +195,12 @@ class InstallmentSaleController extends Controller
                 [
                     'name' => $request->input('customer_name'),
                     'address' => $request->input('customer_address'),
-                    'phone' => $request->input('customer_phone'),
+                    'phone' => $request->input('customer_phone'), // make sure same phone belongs to this CNIC
                     'cnic' => $request->input('customer_cnic'),
                     'image' => $request->file('customer_image') ? $request->file('customer_image')->store('customers', 'public') : null,
                 ]
             );
         } catch (\Illuminate\Database\QueryException $e) {
-            if ($e->getCode() == 23000 && str_contains($e->getMessage(), 'customers_phone_unique')) {
-                return response()->json(['message' => 'A customer with this phone number already exists.'], 422);
-            }
             return response()->json(['message' => 'Database error: ' . $e->getMessage()], 500);
         }
 
@@ -236,6 +230,7 @@ class InstallmentSaleController extends Controller
         return response()->json(['message' => 'Installment sale created successfully!']);
     }
 
+
     /**
      * Store a payment for an installment sale.
      */
@@ -248,13 +243,13 @@ class InstallmentSaleController extends Controller
 
         // Find the installment sale
         $sale = InstallmentSale::findOrFail($id);
-        
+
         // Check if payment amount exceeds remaining balance
         $remainingBalance = $sale->remaining_balance;
         if ($request->amount > $remainingBalance) {
             return response()->json(['message' => 'Payment amount cannot exceed the remaining balance'], 422);
         }
-        
+
         // Create the payment record
         $payment = new InstallmentPayment([
             'installment_sale_id' => $id,
@@ -262,10 +257,10 @@ class InstallmentSaleController extends Controller
             'note' => $request->notes,
             'paid_at' => now(),
         ]);
-        
+
         // Save the payment
         $payment->save();
-        
+
         // Update sale status if fully paid
         if ($sale->remaining_balance <= 0) {
             $sale->status = 'completed';

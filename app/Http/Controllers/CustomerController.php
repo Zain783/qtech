@@ -99,7 +99,7 @@ class CustomerController extends Controller
         }
         $request->validate([
             'name' => 'required|string|max:255',
-            'phone' => 'required|string|max:20|unique:customers,phone',
+            'phone' => 'required|string|max:20',
             'address' => 'nullable|string|max:255',
         ]);
 
@@ -139,7 +139,7 @@ class CustomerController extends Controller
 
         $request->validate([
             'name' => 'required|string|max:255',
-            'phone' => 'required|string|max:20|unique:customers,phone,' . $customer->id, // Corrected syntax
+            'phone' => 'required|string|max:20',
             'address' => 'nullable|string|max:255',
         ]);
 

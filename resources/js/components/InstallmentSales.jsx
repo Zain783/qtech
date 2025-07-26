@@ -8,6 +8,7 @@ export default function InstallmentSales() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [showPrintModal, setShowPrintModal] = useState(false);
+    const [showListPrintModal, setShowListPrintModal] = useState(false);
     const [selectedSale, setSelectedSale] = useState(null);
     const [printOptions, setPrintOptions] = useState({
         includeCustomer: true,
@@ -18,8 +19,18 @@ export default function InstallmentSales() {
         paperSize: 'A4',
         orientation: 'portrait'
     });
+    const [listPrintOptions, setListPrintOptions] = useState({
+        groupBy: 'none', // none, salesman, status, dueDate
+        includeImages: false,
+        includeBalances: true,
+        includeDueDates: true,
+        includeContactInfo: true,
+        paperSize: 'A4',
+        orientation: 'landscape',
+        title: 'Installment Sales Customer List'
+    });
     const printRef = useRef();
-    
+
     const { protocol, hostname, port } = window.location;
     const fullDomainWithPort = `${protocol}//${hostname}${port ? `:${port}` : ''}`;
 
@@ -45,43 +56,53 @@ export default function InstallmentSales() {
         setShowPrintModal(true);
     };
 
-    const handlePrintConfirm = () => {
+    const handlePrintCustomerList = () => {
+        setShowListPrintModal(true);
+    };
+
+    const handleListPrintConfirm = () => {
         const printWindow = window.open('', '_blank');
-        const printContent = generatePrintContent(selectedSale);
-        
+        const printContent = generateCustomerListPrintContent();
+
         printWindow.document.write(printContent);
         printWindow.document.close();
-        
-        // Wait for images to load before printing
+
         setTimeout(() => {
             printWindow.focus();
             printWindow.print();
         }, 500);
-        
+
+        setShowListPrintModal(false);
+        toast.success('Customer list print dialog opened successfully');
+    };
+
+    const handlePrintConfirm = () => {
+        const printWindow = window.open('', '_blank');
+        const printContent = generatePrintContent(selectedSale);
+
+        printWindow.document.write(printContent);
+        printWindow.document.close();
+
+        setTimeout(() => {
+            printWindow.focus();
+            printWindow.print();
+        }, 500);
+
         setShowPrintModal(false);
         toast.success('Print dialog opened successfully');
     };
 
     const handleSavePDF = async () => {
         try {
-            // Create a temporary div for PDF generation
-            const tempDiv = document.createElement('div');
-            tempDiv.innerHTML = generatePrintContent(selectedSale, true);
-            tempDiv.style.position = 'absolute';
-            tempDiv.style.left = '-9999px';
-            document.body.appendChild(tempDiv);
-
-            // Use browser's print to PDF functionality
             const printWindow = window.open('', '_blank');
             printWindow.document.write(generatePrintContent(selectedSale));
             printWindow.document.close();
-            
+
             setTimeout(() => {
                 printWindow.focus();
                 printWindow.print();
-                document.body.removeChild(tempDiv);
             }, 500);
-            
+
             setShowPrintModal(false);
             toast.success('PDF save dialog opened. Choose "Save as PDF" in print options.');
         } catch (error) {
@@ -89,10 +110,283 @@ export default function InstallmentSales() {
         }
     };
 
+    const generateCustomerListPrintContent = () => {
+        const currentDate = new Date().toLocaleDateString();
+        const currentTime = new Date().toLocaleTimeString();
+
+        // Sort and group sales based on options
+        let sortedSales = [...sales];
+
+        if (listPrintOptions.groupBy === 'salesman') {
+            sortedSales.sort((a, b) => {
+                const salesmanA = a.salesman?.name || 'Unassigned';
+                const salesmanB = b.salesman?.name || 'Unassigned';
+                return salesmanA.localeCompare(salesmanB);
+            });
+        } else if (listPrintOptions.groupBy === 'status') {
+            sortedSales.sort((a, b) => a.status.localeCompare(b.status));
+        } else if (listPrintOptions.groupBy === 'dueDate') {
+            sortedSales.sort((a, b) => {
+                const dueDateA = calculateNextDueDate(a);
+                const dueDateB = calculateNextDueDate(b);
+                return new Date(dueDateA) - new Date(dueDateB);
+            });
+        }
+
+        // Calculate totals
+        const totalAmount = sortedSales.reduce((sum, sale) => sum + parseFloat(sale.total || 0), 0);
+        const totalPaid = sortedSales.reduce((sum, sale) => {
+            const paidAmount = sale.payments?.reduce((pSum, payment) => pSum + parseFloat(payment.amount || 0), 0) || 0;
+            return sum + parseFloat(sale.down_payment || 0) + paidAmount;
+        }, 0);
+        const totalRemaining = totalAmount - totalPaid;
+
+        return `
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>${listPrintOptions.title}</title>
+            <style>
+                body {
+                    font-family: Arial, sans-serif;
+                    margin: 10px;
+                    color: #333;
+                    font-size: 12px;
+                }
+                .header {
+                    text-align: center;
+                    border-bottom: 2px solid #333;
+                    padding-bottom: 15px;
+                    margin-bottom: 20px;
+                }
+                .company-logo {
+                    font-size: 20px;
+                    font-weight: bold;
+                    color: #2c3e50;
+                }
+                .document-title {
+                    font-size: 18px;
+                    margin: 10px 0;
+                    color: #34495e;
+                }
+                .print-info {
+                    font-size: 10px;
+                    color: #666;
+                    display: flex;
+                    justify-content: space-between;
+                    margin-top: 10px;
+                }
+                .summary-stats {
+                    display: flex;
+                    justify-content: space-around;
+                    background-color: #f8f9fa;
+                    padding: 10px;
+                    margin-bottom: 20px;
+                    border-radius: 5px;
+                }
+                .stat-item {
+                    text-align: center;
+                }
+                .stat-value {
+                    font-size: 16px;
+                    font-weight: bold;
+                    color: #2c3e50;
+                }
+                .stat-label {
+                    font-size: 10px;
+                    color: #666;
+                }
+                .customer-table {
+                    width: 100%;
+                    border-collapse: collapse;
+                    margin-bottom: 20px;
+                    font-size: 10px;
+                }
+                .customer-table th,
+                .customer-table td {
+                    border: 1px solid #ddd;
+                    padding: 6px;
+                    text-align: left;
+                    vertical-align: top;
+                }
+                .customer-table th {
+                    background-color: #f8f9fa;
+                    font-weight: bold;
+                    font-size: 9px;
+                }
+                .customer-table tr:nth-child(even) {
+                    background-color: #f9f9f9;
+                }
+                .product-img {
+                    width: 30px;
+                    height: 30px;
+                    object-fit: cover;
+                    border-radius: 3px;
+                }
+                .status-badge {
+                    padding: 2px 6px;
+                    border-radius: 12px;
+                    font-size: 8px;
+                    font-weight: bold;
+                    text-transform: uppercase;
+                }
+                .status-active {
+                    background-color: #d4edda;
+                    color: #155724;
+                }
+                .status-completed {
+                    background-color: #d1ecf1;
+                    color: #0c5460;
+                }
+                .status-overdue {
+                    background-color: #f8d7da;
+                    color: #721c24;
+                }
+                .amount {
+                    font-weight: bold;
+                    text-align: right;
+                }
+                .amount-positive {
+                    color: #28a745;
+                }
+                .amount-negative {
+                    color: #dc3545;
+                }
+                .group-header {
+                    background-color: #e9ecef;
+                    font-weight: bold;
+                    padding: 8px;
+                    border-top: 2px solid #333;
+                }
+                @media print {
+                    body { margin: 0; }
+                    .customer-table { font-size: 9px; }
+                    .customer-table th,
+                    .customer-table td { padding: 4px; }
+                }
+                @page {
+                    size: ${listPrintOptions.paperSize} ${listPrintOptions.orientation};
+                    margin: 0.5in;
+                }
+            </style>
+        </head>
+        <body>
+            <div class="header">
+                <div class="company-logo">Your Company Name</div>
+                <div class="document-title">${listPrintOptions.title}</div>
+                <div class="print-info">
+                    <span>Generated on: ${currentDate} at ${currentTime}</span>
+                    <span>Total Records: ${sortedSales.length}</span>
+                </div>
+            </div>
+
+            <div class="summary-stats">
+                <div class="stat-item">
+                    <div class="stat-value">PKR ${totalAmount.toLocaleString()}</div>
+                    <div class="stat-label">Total Sales Amount</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">PKR ${totalPaid.toLocaleString()}</div>
+                    <div class="stat-label">Total Collected</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">PKR ${totalRemaining.toLocaleString()}</div>
+                    <div class="stat-label">Total Outstanding</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">${sortedSales.length}</div>
+                    <div class="stat-label">Active Customers</div>
+                </div>
+            </div>
+
+            <table class="customer-table">
+                <thead>
+                    <tr>
+                        <th style="width: 3%;">S#</th>
+                        ${listPrintOptions.includeImages ? '<th style="width: 5%;">Product</th>' : ''}
+                        <th style="width: 15%;">Customer Name</th>
+                        <th style="width: 12%;">Address</th>
+                        ${listPrintOptions.includeContactInfo ? '<th style="width: 10%;">Phone</th>' : ''}
+                        ${listPrintOptions.includeContactInfo ? '<th style="width: 12%;">CNIC</th>' : ''}
+                        <th style="width: 10%;">Product</th>
+                        <th style="width: 8%;">Total Amount</th>
+                        ${listPrintOptions.includeBalances ? '<th style="width: 8%;">Paid</th>' : ''}
+                        ${listPrintOptions.includeBalances ? '<th style="width: 8%;">Balance</th>' : ''}
+                        <th style="width: 8%;">Monthly</th>
+                        ${listPrintOptions.includeDueDates ? '<th style="width: 8%;">Next Due</th>' : ''}
+                        <th style="width: 6%;">Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${sortedSales.map((sale, index) => {
+                        const paidAmount = parseFloat(sale.down_payment || 0) +
+                            (sale.payments?.reduce((sum, payment) => sum + parseFloat(payment.amount || 0), 0) || 0);
+                        const remainingBalance = parseFloat(sale.total || 0) - paidAmount;
+                        const nextDueDate = calculateNextDueDate(sale);
+
+                        return `
+                            <tr>
+                                <td>${index + 1}</td>
+                                ${listPrintOptions.includeImages ? `
+                                    <td>
+                                        <img class="product-img"
+                                             src="${sale.product?.image ? `${fullDomainWithPort}/storage/${sale.product.image}` : `${fullDomainWithPort}/assets/images/no-image.png`}"
+                                             alt="Product"
+                                             onerror="this.src='${fullDomainWithPort}/assets/images/no-image.png'">
+                                    </td>
+                                ` : ''}
+                                <td><strong>${sale.customer?.name || 'N/A'}</strong></td>
+                                <td>${sale.customer?.address || 'N/A'}</td>
+                                ${listPrintOptions.includeContactInfo ? `<td>${sale.customer?.phone || 'N/A'}</td>` : ''}
+                                ${listPrintOptions.includeContactInfo ? `<td>${sale.customer?.cnic || 'N/A'}</td>` : ''}
+                                <td>${sale.product?.name || 'N/A'}</td>
+                                <td class="amount">PKR ${parseFloat(sale.total || 0).toLocaleString()}</td>
+                                ${listPrintOptions.includeBalances ? `<td class="amount amount-positive">PKR ${paidAmount.toLocaleString()}</td>` : ''}
+                                ${listPrintOptions.includeBalances ? `<td class="amount ${remainingBalance > 0 ? 'amount-negative' : 'amount-positive'}">PKR ${remainingBalance.toLocaleString()}</td>` : ''}
+                                <td class="amount">PKR ${parseFloat(sale.monthly_installment || 0).toLocaleString()}</td>
+                                ${listPrintOptions.includeDueDates ? `<td>${nextDueDate}</td>` : ''}
+                                <td>
+                                    <span class="status-badge status-${sale.status || 'active'}">
+                                        ${(sale.status || 'active').toUpperCase()}
+                                    </span>
+                                </td>
+                            </tr>
+                        `;
+                    }).join('')}
+                </tbody>
+            </table>
+
+            <div style="margin-top: 30px; font-size: 10px; color: #666;">
+                <p><strong>Note:</strong> This report was generated automatically. Please verify all information before taking any action.</p>
+                <p><strong>Legend:</strong> Active = Ongoing payments, Completed = Fully paid, Overdue = Payment due</p>
+            </div>
+        </body>
+        </html>
+        `;
+    };
+
+    const calculateNextDueDate = (sale) => {
+        try {
+            // This is a simplified calculation - you might need to adjust based on your business logic
+            if (!sale.created_at) return 'N/A';
+
+            const startDate = new Date(sale.created_at);
+            const totalPayments = sale.payments?.length || 0;
+            const nextPaymentMonth = totalPayments + 1;
+
+            const nextDueDate = new Date(startDate);
+            nextDueDate.setMonth(startDate.getMonth() + nextPaymentMonth);
+
+            return nextDueDate.toLocaleDateString();
+        } catch (error) {
+            return 'N/A';
+        }
+    };
+
     const generatePrintContent = (sale, forPDF = false) => {
         const currentDate = new Date().toLocaleDateString();
-        const paidAmount = sale.payments && sale.payments.length > 0 
-            ? sale.payments.reduce((sum, payment) => sum + parseFloat(payment.amount), 0) 
+        const paidAmount = sale.payments && sale.payments.length > 0
+            ? sale.payments.reduce((sum, payment) => sum + parseFloat(payment.amount), 0)
             : 0;
 
         return `
@@ -237,8 +531,8 @@ export default function InstallmentSales() {
                 <div class="section-title">Product Information</div>
                 ${printOptions.includeProductImage ? `
                 <div class="product-image">
-                    <img src="${sale.product && sale.product.image ? `${fullDomainWithPort}/storage/${sale.product.image}` : `${fullDomainWithPort}/assets/images/no-image.png`}" 
-                         alt="${sale.product?.name || 'Product'}" 
+                    <img src="${sale.product && sale.product.image ? `${fullDomainWithPort}/storage/${sale.product.image}` : `${fullDomainWithPort}/assets/images/no-image.png`}"
+                         alt="${sale.product?.name || 'Product'}"
                          onerror="this.src='${fullDomainWithPort}/assets/images/no-image.png'">
                 </div>
                 ` : ''}
@@ -372,8 +666,14 @@ export default function InstallmentSales() {
 
     return (
         <div className="card">
-            <div className="card-header">
+            <div className="card-header d-flex justify-content-between align-items-center">
                 <h3 className="card-title">Installment Sales</h3>
+                <button
+                    onClick={handlePrintCustomerList}
+                    className="btn btn-info"
+                >
+                    <i className="fas fa-print"></i> Print Customer List
+                </button>
             </div>
             <div className="card-body">
                 <div className="table-responsive">
@@ -395,10 +695,10 @@ export default function InstallmentSales() {
                                         <tr key={sale.id}>
                                             <td>
                                                 <div className="d-flex flex-column align-items-center">
-                                                    <img 
-                                                        src={sale.product && sale.product.image ? `${fullDomainWithPort}/storage/${sale.product.image}` : `${fullDomainWithPort}/assets/images/no-image.png`} 
+                                                    <img
+                                                        src={sale.product && sale.product.image ? `${fullDomainWithPort}/storage/${sale.product.image}` : `${fullDomainWithPort}/assets/images/no-image.png`}
                                                         alt={sale.product?.name || 'N/A'}
-                                                        className="img-thumbnail mb-2" 
+                                                        className="img-thumbnail mb-2"
                                                         style={{ width: '80px', height: '80px' }}
                                                         onError={e => { e.target.onerror = null; e.target.src = `${fullDomainWithPort}/assets/images/no-image.png`; }}
                                                     />
@@ -436,9 +736,9 @@ export default function InstallmentSales() {
                                                 {sale.id ? (
                                                     <>
                                                         <a href={`/admin/installment-sales/${sale.id}/payments`} className="btn btn-success btn-sm mb-1 w-100">
-                                                            <i className="fas fa-money-bill"></i> View - Update Payment 
+                                                            <i className="fas fa-money-bill"></i> View - Update Payment
                                                         </a>
-                                                        <button 
+                                                        <button
                                                             onClick={() => handlePrint(sale)}
                                                             className="btn btn-primary btn-sm w-100"
                                                         >
@@ -462,7 +762,133 @@ export default function InstallmentSales() {
                 </div>
             </div>
 
-            {/* Print Options Modal */}
+            {/* Customer List Print Options Modal */}
+            {showListPrintModal && (
+                <div className="modal fade show" style={{ display: 'block', backgroundColor: 'rgba(0,0,0,0.5)' }}>
+                    <div className="modal-dialog modal-lg">
+                        <div className="modal-content">
+                            <div className="modal-header">
+                                <h5 className="modal-title">Print Customer List Options</h5>
+                                <button type="button" className="btn-close" onClick={() => setShowListPrintModal(false)}></button>
+                            </div>
+                            <div className="modal-body">
+                                <div className="row">
+                                    <div className="col-md-6">
+                                        <h6>Display Options:</h6>
+                                        <div className="mb-3">
+                                            <label className="form-label">Report Title:</label>
+                                            <input
+                                                type="text"
+                                                className="form-control"
+                                                value={listPrintOptions.title}
+                                                onChange={(e) => setListPrintOptions({...listPrintOptions, title: e.target.value})}
+                                            />
+                                        </div>
+                                        <div className="mb-3">
+                                            <label className="form-label">Group By:</label>
+                                            <select
+                                                className="form-select"
+                                                value={listPrintOptions.groupBy}
+                                                onChange={(e) => setListPrintOptions({...listPrintOptions, groupBy: e.target.value})}
+                                            >
+                                                <option value="none">No Grouping</option>
+                                                <option value="salesman">By Salesman</option>
+                                                <option value="status">By Status</option>
+                                                <option value="dueDate">By Due Date</option>
+                                            </select>
+                                        </div>
+                                        <div className="form-check mb-2">
+                                            <input
+                                                className="form-check-input"
+                                                type="checkbox"
+                                                checked={listPrintOptions.includeImages}
+                                                onChange={(e) => setListPrintOptions({...listPrintOptions, includeImages: e.target.checked})}
+                                            />
+                                            <label className="form-check-label">Include Product Images</label>
+                                        </div>
+                                        <div className="form-check mb-2">
+                                            <input
+                                                className="form-check-input"
+                                                type="checkbox"
+                                                checked={listPrintOptions.includeBalances}
+                                                onChange={(e) => setListPrintOptions({...listPrintOptions, includeBalances: e.target.checked})}
+                                            />
+                                            <label className="form-check-label">Include Balance Details</label>
+                                        </div>
+                                        <div className="form-check mb-2">
+                                            <input
+                                                className="form-check-input"
+                                                type="checkbox"
+                                                checked={listPrintOptions.includeDueDates}
+                                                onChange={(e) => setListPrintOptions({...listPrintOptions, includeDueDates: e.target.checked})}
+                                            />
+                                            <label className="form-check-label">Include Due Dates</label>
+                                        </div>
+                                        <div className="form-check mb-2">
+                                            <input
+                                                className="form-check-input"
+                                                type="checkbox"
+                                                checked={listPrintOptions.includeContactInfo}
+                                                onChange={(e) => setListPrintOptions({...listPrintOptions, includeContactInfo: e.target.checked})}
+                                            />
+                                            <label className="form-check-label">Include Contact Information</label>
+                                        </div>
+                                    </div>
+                                    <div className="col-md-6">
+                                        <h6>Paper Settings:</h6>
+                                        <div className="mb-3">
+                                            <label className="form-label">Paper Size:</label>
+                                            <select
+                                                className="form-select"
+                                                value={listPrintOptions.paperSize}
+                                                onChange={(e) => setListPrintOptions({...listPrintOptions, paperSize: e.target.value})}
+                                            >
+                                                <option value="A4">A4</option>
+                                                <option value="A3">A3</option>
+                                                <option value="Letter">Letter</option>
+                                                <option value="Legal">Legal</option>
+                                            </select>
+                                        </div>
+                                        <div className="mb-3">
+                                            <label className="form-label">Orientation:</label>
+                                            <select
+                                                className="form-select"
+                                                value={listPrintOptions.orientation}
+                                                onChange={(e) => setListPrintOptions({...listPrintOptions, orientation: e.target.value})}
+                                            >
+                                                <option value="portrait">Portrait</option>
+                                                <option value="landscape">Landscape</option>
+                                            </select>
+                                        </div>
+                                        <div className="alert alert-info">
+                                            <small>
+                                                <strong>Preview:</strong><br/>
+                                                • Total customers: {sales.length}<br/>
+                                                • Columns: {7 +
+                                                    (listPrintOptions.includeImages ? 1 : 0) +
+                                                    (listPrintOptions.includeContactInfo ? 2 : 0) +
+                                                    (listPrintOptions.includeBalances ? 2 : 0) +
+                                                    (listPrintOptions.includeDueDates ? 1 : 0)}<br/>
+                                                • Recommended: Landscape for more columns
+                                            </small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="modal-footer">
+                                <button type="button" className="btn btn-secondary" onClick={() => setShowListPrintModal(false)}>
+                                    Cancel
+                                </button>
+                                <button type="button" className="btn btn-primary" onClick={handleListPrintConfirm}>
+                                    <i className="fas fa-print"></i> Print Customer List
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Individual Sale Print Options Modal */}
             {showPrintModal && (
                 <div className="modal fade show" style={{ display: 'block', backgroundColor: 'rgba(0,0,0,0.5)' }}>
                     <div className="modal-dialog modal-lg">
@@ -476,45 +902,45 @@ export default function InstallmentSales() {
                                     <div className="col-md-6">
                                         <h6>Include Sections:</h6>
                                         <div className="form-check">
-                                            <input 
-                                                className="form-check-input" 
-                                                type="checkbox" 
+                                            <input
+                                                className="form-check-input"
+                                                type="checkbox"
                                                 checked={printOptions.includeCustomer}
                                                 onChange={(e) => setPrintOptions({...printOptions, includeCustomer: e.target.checked})}
                                             />
                                             <label className="form-check-label">Customer Information</label>
                                         </div>
                                         <div className="form-check">
-                                            <input 
-                                                className="form-check-input" 
-                                                type="checkbox" 
+                                            <input
+                                                className="form-check-input"
+                                                type="checkbox"
                                                 checked={printOptions.includeGuarantor}
                                                 onChange={(e) => setPrintOptions({...printOptions, includeGuarantor: e.target.checked})}
                                             />
                                             <label className="form-check-label">Guarantor Information</label>
                                         </div>
                                         <div className="form-check">
-                                            <input 
-                                                className="form-check-input" 
-                                                type="checkbox" 
+                                            <input
+                                                className="form-check-input"
+                                                type="checkbox"
                                                 checked={printOptions.includeFinancial}
                                                 onChange={(e) => setPrintOptions({...printOptions, includeFinancial: e.target.checked})}
                                             />
                                             <label className="form-check-label">Financial Details</label>
                                         </div>
                                         <div className="form-check">
-                                            <input 
-                                                className="form-check-input" 
-                                                type="checkbox" 
+                                            <input
+                                                className="form-check-input"
+                                                type="checkbox"
                                                 checked={printOptions.includePaymentHistory}
                                                 onChange={(e) => setPrintOptions({...printOptions, includePaymentHistory: e.target.checked})}
                                             />
                                             <label className="form-check-label">Payment History</label>
                                         </div>
                                         <div className="form-check">
-                                            <input 
-                                                className="form-check-input" 
-                                                type="checkbox" 
+                                            <input
+                                                className="form-check-input"
+                                                type="checkbox"
                                                 checked={printOptions.includeProductImage}
                                                 onChange={(e) => setPrintOptions({...printOptions, includeProductImage: e.target.checked})}
                                             />
@@ -525,7 +951,7 @@ export default function InstallmentSales() {
                                         <h6>Paper Settings:</h6>
                                         <div className="mb-3">
                                             <label className="form-label">Paper Size:</label>
-                                            <select 
+                                            <select
                                                 className="form-select"
                                                 value={printOptions.paperSize}
                                                 onChange={(e) => setPrintOptions({...printOptions, paperSize: e.target.value})}
@@ -538,7 +964,7 @@ export default function InstallmentSales() {
                                         </div>
                                         <div className="mb-3">
                                             <label className="form-label">Orientation:</label>
-                                            <select 
+                                            <select
                                                 className="form-select"
                                                 value={printOptions.orientation}
                                                 onChange={(e) => setPrintOptions({...printOptions, orientation: e.target.value})}
